@@ -186,7 +186,7 @@
     </div>
   </section>
 
-  <details id="organizer">
+  <details id="organizer" hidden>
     <summary>Organizer setup</summary>
     <div class="panel">
       <p class="note">Do this on your own computer. Names stay on this page and aren’t sent or saved anywhere. Each person gets a scrambled code, so you won’t see who drew whom.</p>
@@ -371,6 +371,12 @@ if (typeof document !== "undefined") {
   }
 
   // ----- Organizer -----
+  // Only shown when the page is opened with ?organizer in the address.
+  if (new URLSearchParams(location.search).has("organizer")) {
+    $("organizer").hidden = false;
+    $("organizer").open = true;
+  }
+
   async function copyText(text, btn) {
     try { await navigator.clipboard.writeText(text); }
     catch {
@@ -386,7 +392,7 @@ if (typeof document !== "undefined") {
   function siteLink() {
     let u = $("site").value.trim();
     if (!u) return "";
-    u = u.split("#")[0];
+    u = u.split("#")[0].split("?")[0];
     if (!/^https?:\/\//i.test(u)) u = "https://" + u;
     return u;
   }
