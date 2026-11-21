@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Secret Santa</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #F3F6F4;
+    --surface: #FFFFFF;
+    --ink: #1C2421;
+    --muted: #5B6A64;
+    --line: #D6DEDA;
+    --pine: #1F4D3A;
+    --berry: #A3283B;
+    --twine: #B8913F;
+    --tag: #FFFDF8;
+    --field: #FFFFFF;
+    --error: #A3283B;
+    --display: "Young Serif", Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #0F1E18;
+      --surface: #16291F;
+      --ink: #EAF0EC;
+      --muted: #9DB0A6;
+      --line: #2C4438;
+      --pine: #7FC4A0;
+      --berry: #F0899A;
+      --twine: #D9B76A;
+      --tag: #1D3328;
+      --field: #0F1E18;
+      --error: #F0899A;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.55 var(--body);
+    padding: max(24px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  h1 {
+    font: 400 clamp(2.4rem, 9vw, 3.4rem)/1.05 var(--display);
+    color: var(--pine);
+    margin: 16px 0 6px;
+  }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 4px 0 0; }
+  input[type=text], input[type=url], textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--ink);
+    background: var(--field);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  textarea { min-height: 150px; resize: vertical; }
+  #code { font-family: var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--twine);
+    outline-offset: 2px;
+  }
+  button {
+    font: 600 1rem var(--body);
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 22px;
+    cursor: pointer;
+    background: var(--berry);
+    color: #fff;
+  }
+  @media (prefers-color-scheme: dark) { button { color: #1A0D10; } }
+  button.quiet {
+    background: transparent;
+    color: var(--pine);
+    border: 1.5px solid var(--line);
+    padding: 8px 14px;
+    font-size: .9rem;
+  }
+  .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .error { color: var(--error); font-weight: 600; margin: 10px 0 0; }
+
+  /* The gift tag */
+  .tag {
+    position: relative;
+    margin: 32px 0 8px;
+    background: var(--tag);
+    border: 1.5px solid var(--line);
+    border-radius: 14px 14px 14px 14px;
+    padding: 34px 28px 30px 64px;
+    clip-path: polygon(36px 0, 100% 0, 100% 100%, 36px 100%, 0 50%);
+    transform-origin: left center;
+  }
+  .tag::before {
+    content: "";
+    position: absolute;
+    left: 22px; top: 50%;
+    width: 14px; height: 14px; margin-top: -7px;
+    border-radius: 50%;
+    background: var(--bg);
+    box-shadow: 0 0 0 2px var(--twine);
+  }
+  .tag .from { color: var(--muted); margin: 0; }
+  .tag .to-label { margin: 18px 0 0; color: var(--muted); }
+  .tag .to {
+    font: 400 clamp(2rem, 8vw, 2.8rem)/1.1 var(--display);
+    color: var(--berry);
+    margin: 2px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .tag .shh { margin: 18px 0 0; font-size: .95rem; color: var(--muted); }
+  .tag.show { animation: swing .7s ease-out; }
+  @keyframes swing {
+    0% { transform: rotate(-6deg) scale(.96); opacity: 0; }
+    60% { transform: rotate(2deg); opacity: 1; }
+    100% { transform: rotate(0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .tag.show { animation: none; } }
+
+  /* Organizer */
+  details {
+    margin-top: 56px;
+    border-top: 1.5px solid var(--line);
+    padding-top: 18px;
+  }
+  summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+  .panel { margin-top: 18px; display: grid; gap: 22px; }
+  .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+  .check input { margin-top: 5px; width: 18px; height: 18px; accent-color: var(--berry); }
+  .note {
+    background: var(--surface);
+    border-left: 4px solid var(--twine);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: .95rem;
+  }
+  .results { display: grid; gap: 10px; }
+  .person {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .person strong { display: block; }
+  .person code { font-family: var(--mono); font-size: .85rem; color: var(--muted); word-break: break-all; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Secret Santa</h1>
+  <p class="lede">Paste the code you were sent to find out who you’re giving a gift to. Only you will see it.</p>
+
+  <section aria-labelledby="code-label">
+    <label id="code-label" for="code">Your code</label>
+    <input id="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-…">
+    <p id="prefilled" class="hint" hidden>Your code is already filled in. Tap “Reveal my person” when nobody’s looking over your shoulder.</p>
+    <div class="row">
+      <button id="reveal-btn" type="button">Reveal my person</button>
+    </div>
+    <p id="code-error" class="error" role="alert" hidden></p>
+
+    <div id="tag" class="tag" hidden aria-live="polite">
+      <p class="from">Hi, <span id="giver"></span>!</p>
+      <p class="to-label">You’re buying a gift for</p>
+      <p class="to" id="recipient"></p>
+      <p class="shh">Keep it secret. You can close this page now.</p>
+    </div>
+    <div class="row" id="hide-row" hidden>
+      <button id="hide-btn" class="quiet" type="button">Hide</button>
+    </div>
+  </section>
+
+  <details id="organizer">
+    <summary>Organizer setup</summary>
+    <div class="panel">
+      <p class="note">Do this on your own computer. Names stay on this page and aren’t sent or saved anywhere. Each person gets a scrambled code, so you won’t see who drew whom.</p>
+
+      <div>
+        <label for="names">Everyone taking part</label>
+        <textarea id="names" placeholder="One name per line&#10;Mom&#10;Dad&#10;Sam&#10;Priya"></textarea>
+      </div>
+
+      <div>
+        <label for="exclusions">Who shouldn’t draw each other (optional)</label>
+        <textarea id="exclusions" style="min-height:90px" placeholder="Mom, Dad&#10;Sam, Priya"></textarea>
+        <p class="hint">Put people on the same line, separated by commas. Nobody on a line can draw anyone else on that line.</p>
+      </div>
+
+      <label class="check">
+        <input id="no-mutual" type="checkbox" checked>
+        <span>Don’t let two people draw each other (if Sam gets Priya, Priya won’t get Sam)</span>
+      </label>
+
+      <div>
+        <label for="site">Link to this page (optional)</label>
+        <input id="site" type="url" placeholder="https://yourname.github.io/santa/">
+        <p class="hint">If you add your GitHub Pages link, each message includes a tap-to-open link with the code already filled in.</p>
+      </div>
+
+      <div class="row" style="margin-top:0">
+        <button id="draw-btn" type="button">Draw names</button>
+      </div>
+      <p id="draw-error" class="error" role="alert" hidden></p>
+
+      <div id="results-wrap" hidden>
+        <p class="note">Send each person only their own message. Old codes keep working if you draw again, so if you redraw, send everyone the new set.</p>
+        <div id="results" class="results"></div>
+      </div>
+    </div>
+  </details>
+</main>
+
+<script>
+const Core = (() => {
+  const ALPH = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+  function randInt(n) {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0] % n;
+  }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function keystream(salt, n) {
+    const r = mulberry32(((salt[0] << 16) | (salt[1] << 8) | salt[2]) ^ 0x5A17C0DE);
+    const k = new Uint8Array(n);
+    for (let i = 0; i < n; i++) k[i] = Math.floor(r() * 256);
+    return k;
+  }
+  function fnv(bytes) {
+    let h = 0x811c9dc5;
+    for (const b of bytes) { h ^= b; h = Math.imul(h, 0x01000193); }
+    return h >>> 0;
+  }
+  function b32enc(bytes) {
+    let bits = 0, val = 0, out = "";
+    for (const b of bytes) {
+      val = (val << 8) | b; bits += 8;
+      while (bits >= 5) { out += ALPH[(val >>> (bits - 5)) & 31]; bits -= 5; }
+      val &= (1 << bits) - 1;
+    }
+    if (bits > 0) out += ALPH[(val << (5 - bits)) & 31];
+    return out;
+  }
+  function b32dec(str) {
+    const out = [];
+    let bits = 0, val = 0;
+    for (const ch of str) {
+      const i = ALPH.indexOf(ch);
+      if (i < 0) return null;
+      val = (val << 5) | i; bits += 5;
+      if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; val &= (1 << bits) - 1; }
+    }
+    return new Uint8Array(out);
+  }
+  function normalize(s) {
+    return s.toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+  }
+  function makeCode(giver, recipient) {
+    const plain = new TextEncoder().encode(giver + "\u001f" + recipient);
+    const salt = new Uint8Array(3);
+    crypto.getRandomValues(salt);
+    const k = keystream(salt, plain.length);
+    const all = new Uint8Array(3 + plain.length + 1);
+    all.set(salt, 0);
+    for (let i = 0; i < plain.length; i++) all[3 + i] = plain[i] ^ k[i];
+    all[all.length - 1] = fnv(plain) & 255;
+    return b32enc(all).match(/.{1,4}/g).join("-");
+  }
+  function readCode(code) {
+    const s = normalize(code || "");
+    if (s.length < 10) return null;
+    const b = b32dec(s);
+    if (!b || b.length < 6) return null;
+    const salt = b.slice(0, 3);
+    const c = b.slice(3, b.length - 1);
+    const k = keystream(salt, c.length);
+    const plain = c.map((x, i) => x ^ k[i]);
+    if ((fnv(plain) & 255) !== b[b.length - 1]) return null;
+    let text;
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(plain); } catch { return null; }
+    const parts = text.split("\u001f");
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+    return { giver: parts[0], recipient: parts[1] };
+  }
+  // Returns assign[giver] = recipient index, or null if no valid draw exists.
+  function draw(n, blocked, noMutual) {
+    const givers = shuffle([...Array(n).keys()]);
+    const assign = new Array(n).fill(-1);
+    const used = new Array(n).fill(false);
+    let steps = 0;
+    function ok(g, r) {
+      if (g === r || used[r] || blocked.has(g + "," + r)) return false;
+      if (noMutual && assign[r] === g) return false;
+      return true;
+    }
+    function step(idx) {
+      if (idx === n) return true;
+      if (++steps > 200000) return false;
+      const g = givers[idx];
+      for (const r of shuffle([...Array(n).keys()])) {
+        if (!ok(g, r)) continue;
+        assign[g] = r; used[r] = true;
+        if (step(idx + 1)) return true;
+        assign[g] = -1; used[r] = false;
+      }
+      return false;
+    }
+    return step(0) ? assign : null;
+  }
+  return { makeCode, readCode, draw };
+})();
+
+if (typeof document !== "undefined") {
+  const $ = (id) => document.getElementById(id);
+
+  // ----- Reveal -----
+  function showError(el, msg) { el.textContent = msg; el.hidden = false; }
+  function reveal() {
+    $("code-error").hidden = true;
+    const result = Core.readCode($("code").value);
+    if (!result) {
+      $("tag").hidden = true; $("hide-row").hidden = true;
+      showError($("code-error"), "That code didn’t work. Check it matches the one you were sent, including every letter and number.");
+      return;
+    }
+    $("giver").textContent = result.giver;
+    $("recipient").textContent = result.recipient;
+    const tag = $("tag");
+    tag.hidden = false; tag.classList.remove("show"); void tag.offsetWidth; tag.classList.add("show");
+    $("hide-row").hidden = false;
+    $("prefilled").hidden = true;
+  }
+  $("reveal-btn").addEventListener("click", reveal);
+  $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") reveal(); });
+  $("hide-btn").addEventListener("click", () => {
+    $("tag").hidden = true; $("hide-row").hidden = true; $("code").value = "";
+  });
+  if (location.hash.length > 1) {
+    $("code").value = decodeURIComponent(location.hash.slice(1));
+    $("prefilled").hidden = false;
+  }
+
+  // ----- Organizer -----
+  async function copyText(text, btn) {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+    }
+    const old = btn.textContent;
+    btn.textContent = "Copied ✓";
+    setTimeout(() => (btn.textContent = old), 1600);
+  }
+
+  function siteLink() {
+    let u = $("site").value.trim();
+    if (!u) return "";
+    u = u.split("#")[0];
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
+
+  $("draw-btn").addEventListener("click", () => {
+    const err = $("draw-error");
+    err.hidden = true;
+    $("results-wrap").hidden = true;
+
+    const names = $("names").value.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (names.length < 3) return showError(err, "Add at least 3 people, one name per line.");
+    const lookup = new Map();
+    for (let i = 0; i < names.length; i++) {
+      const key = names[i].toLowerCase();
+      if (lookup.has(key)) return showError(err, `“${names[i]}” is listed twice. Make each name unique, for example by adding a last initial.`);
+      lookup.set(key, i);
+    }
+
+    const blocked = new Set();
+    const lines = $("exclusions").value.split("\n").map((s) => s.trim()).filter(Boolean);
+    for (const line of lines) {
+      const group = line.split(/,|&|\+|\/|\band\b/i).map((s) => s.trim()).filter(Boolean);
+      const idx = [];
+      for (const g of group) {
+        const i = lookup.get(g.toLowerCase());
+        if (i === undefined) return showError(err, `“${g}” in the exclusions isn’t in the list of people. Use the same spelling in both boxes.`);
+        idx.push(i);
+      }
+      for (const a of idx) for (const b of idx) if (a !== b) blocked.add(a + "," + b);
+    }
+
+    const noMutual = $("no-mutual").checked;
+    const assign = Core.draw(names.length, blocked, noMutual);
+    if (!assign) {
+      return showError(err, noMutual
+        ? "No draw fits these rules. Try removing an exclusion, or untick “Don’t let two people draw each other.”"
+        : "No draw fits these rules. Try removing an exclusion.");
+    }
+
+    const link = siteLink();
+    const list = $("results");
+    list.textContent = "";
+    names.forEach((name, i) => {
+      const code = Core.makeCode(name, names[assign[i]]);
+      const message = link
+        ? `Hi ${name}! 🎅 Here’s your Secret Santa link. Open it when you’re on your own: ${link}#${code}`
+        : `Hi ${name}! 🎅 Your Secret Santa code is ${code}. Paste it into the Secret Santa page to see who you’re buying for.`;
+
+      const row = document.createElement("div");
+      row.className = "person";
+      const info = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = name;
+      const codeEl = document.createElement("code");
+      codeEl.textContent = code;
+      info.append(strong, codeEl);
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "quiet";
+      btn.textContent = "Copy message";
+      btn.addEventListener("click", () => copyText(message, btn));
+      row.append(info, btn);
+      list.append(row);
+    });
+    $("results-wrap").hidden = false;
+  });
+}
+</script>
+</body>
+</html>
